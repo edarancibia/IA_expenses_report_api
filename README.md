@@ -1,4 +1,4 @@
-# IA_expenses_report_api
+# AI expenses report
 
 > Smart API that extracts and categorizes expenses from receipt photos and PDFs using AI (Gemini/OpenAI), with auto-deduplication, individual item filtering, and financial summaries by period.
 
