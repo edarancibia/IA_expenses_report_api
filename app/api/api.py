@@ -18,11 +18,14 @@ async def upload_zip(
 
     result = process_zip_file(zip_content, start_date_input=start, end_date_input=end)
 
+    print(result["report"])
+
     return {
         "status": result["status"],
         "total_read_vouchers": result["total_read_vouchers"],
         "summary": result["summary"],
-        "expenses": result["expenses"]
+        "expenses": result["expenses"],
+        "report": result["report"]
     }
     # if file.content_type != 'application/zip':
     #     return {"error": "El archivo debe ser un ZIP"}

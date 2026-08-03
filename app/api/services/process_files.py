@@ -7,6 +7,18 @@ from typing import List, Dict, Any, Optional, Tuple
 import fitz
 from app.api.services.ai_provider import analyze_receipt_image
 
+CATEGORY_EMOJIS = {
+    "Sueldos": "🟢",
+    "Abarrotes": "🟡",
+    "Medicamentos": "🔵",
+    "Otros": "🟠",
+}
+
+REPORT_NOTICE = (
+    '- Todas las transferencias bancarias se consideran "Sueldos" automáticamente a menos que el detalle del comprobante indique otro tipo de gasto.\n'
+    "- Los montos son extraídos automáticamente por IA y podrían contener errores. Se recomienda revisar cada comprobante antes de usar estos datos para fines contables."
+)
+
 def pdf_to_images(pdf_bytes: bytes, dpi: int = 200) -> List[Tuple[bytes, str]]:
     pages = []
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
@@ -129,27 +141,14 @@ def process_zip_file(
         for exp in processed_expenses:
             exp.pop("_filename", None)
         summary = generate_expenses_summary(processed_expenses, s_date, e_date)
-        period = summary.get("period", "")
-        BOLD = "\033[1m"
-        GREEN = "\033[92m"
-        CYAN = "\033[96m"
-        YELLOW = "\033[93m"
-        RESET = "\033[0m"
-        print(f"\n{BOLD}📊 RESUMEN DE GASTOS{RESET}")
-        print(f"{YELLOW}📅 Periodo: {period}{RESET}")
-        print(f"{'━' * 30}")
-        print(f"{BOLD}{'Categoría':<15} {'Total':>12}{RESET}")
-        print(f"{'━' * 30}")
-        for cat in summary["category_breakdown"]:
-            print(f"{CYAN}{cat['category']:<15}{RESET} ${cat['total']:>9,.0f}")
-        print(f"{'━' * 30}")
-        print(f"{BOLD}{GREEN}{'TOTAL':<15} ${summary['total_amount']:>9,.0f}{RESET}\n")
-            
+        report = generate_ai_report(processed_expenses, summary)
+
     return {
         "status": "Procesamiento completado",
         "total_read_vouchers": len(processed_expenses),
         "summary": summary,
-        "expenses": processed_expenses
+        "expenses": processed_expenses,
+        "report": report
     }
 
 def filter_small_items(expenses: List[Dict[str, Any]]) -> int:
@@ -234,3 +233,42 @@ def generate_expenses_summary(
         "category_breakdown": category_list,
         "count": len(processed_expenses)
     }
+
+def _fmt_amount(amount: float) -> str:
+    return f"${amount:,.0f}"
+
+def generate_ai_report(
+    processed_expenses: List[Dict[str, Any]],
+    summary: Dict[str, Any],
+) -> str:
+    lines = ["🤖 REPORTE GENERADO CON IA", "📊 RESUMEN DE GASTOS"]
+    lines.append(f"📅 Periodo: {summary.get('period', '')}")
+    lines.append("Detalle por categoría:")
+
+    category_order = [item["category"] for item in summary["category_breakdown"]]
+    grouped: Dict[str, List[Dict[str, Any]]] = {}
+    for exp in processed_expenses:
+        grouped.setdefault(exp.get("category", "Otros"), []).append(exp)
+
+    for category in category_order:
+        expenses = grouped.get(category, [])
+        emoji = CATEGORY_EMOJIS.get(category, "⚪")
+        cat_total = next(
+            (item["total"] for item in summary["category_breakdown"] if item["category"] == category),
+            0.0,
+        )
+        lines.append(f"{emoji} {category} — {_fmt_amount(cat_total)}")
+        for i, exp in enumerate(expenses):
+            branch = "┗" if i == len(expenses) - 1 else "┣"
+            amount_str = _fmt_amount(exp.get("amount", 0.0))
+            merchant = exp.get("merchant", "")
+            lines.append(f"   {branch} {amount_str:<8} ─ {merchant}")
+
+    separator = "━" * 17
+    lines.append(separator)
+    lines.append(f"💰 TOTAL: {_fmt_amount(summary.get('total_amount', 0.0))}")
+    lines.append(separator)
+    lines.append("⚠️ Aviso:")
+    lines.append(REPORT_NOTICE)
+
+    return "\n".join(lines)

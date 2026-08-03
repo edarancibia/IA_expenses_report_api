@@ -1,4 +1,5 @@
 import os
+import re
 
 from app.api.services.gemini_provider import (
     analyze_receipt_image as analyze_receipt_image_gemini
@@ -13,9 +14,17 @@ AI_PROVIDER = os.getenv(
     "gemini"
 )
 
-def _is_quota_error(e: Exception) -> bool:
+def _is_fallback_error(e: Exception) -> bool:
     msg = str(e).lower()
-    return "429" in msg or "quota" in msg or "rate limit" in msg or "resource_exhausted" in msg
+    return (
+        "429" in msg
+        or "quota" in msg
+        or "rate limit" in msg
+        or "resource_exhausted" in msg
+        or re.search(r"\b5\d\d\b", msg) is not None
+        or "unavailable" in msg
+        or "internal error" in msg
+    )
 
 def analyze_receipt_image(
     image_bytes: bytes,
@@ -32,12 +41,12 @@ def analyze_receipt_image(
     try:
         return primary()
     except Exception as e:
-        if _is_quota_error(e):
-            print(f"Quota excedida en provider principal, usando fallback: {e}")
+        if _is_fallback_error(e):
+            print(f"Error del proveedor principal, usando fallback: {e}")
             try:
                 return fallback()
             except Exception as e2:
-                if _is_quota_error(e2):
-                    print(f"Fallback también excedió cuota: {e2}")
+                if _is_fallback_error(e2):
+                    print(f"Fallback también falló: {e2}")
                 raise
         raise
