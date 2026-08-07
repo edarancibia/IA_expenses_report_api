@@ -5,6 +5,13 @@ from app.api.services.process_files import process_zip_file
 
 api_router = APIRouter()
 
+@api_router.get("/healthcheck")
+def healthcheck():
+    return {
+        "status": "ok",
+        "message": "API despierta y lista para procesar reportes"
+    }
+
 @api_router.post("/upload-zip/")
 async def upload_zip(
     file: UploadFile = File(...),

@@ -16,7 +16,7 @@
 ```bash
 source .venv/bin/activate
 uvicorn app.main:app --reload
-```
+```r
 
 ### Topics
 `fastapi` `python` `gemini-api` `openai` `computer-vision` `expense-tracker` `financial-api` `pdf-parser` `fintech`
