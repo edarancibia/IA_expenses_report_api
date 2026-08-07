@@ -17,6 +17,7 @@ idna==3.16
 pyasn1==0.6.3
 pyasn1_modules==0.4.2
 pycparser==2.23
+openai==2.41.0
 pydantic==2.13.4
 pydantic_core==2.46.4
 python-dotenv==1.2.1
